@@ -1,16 +1,9 @@
 import os
-from functools import lru_cache
 from pathlib import Path
 from typing import Union
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from TTS.api import TTS
-
-
-@lru_cache(maxsize=1)
-def _load_xtts():
-    """xtts_v2 모델을 한 번만 로드해 캐시"""
-    return TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2")
 
 
 def voice_cloning(
@@ -34,7 +27,7 @@ def voice_cloning(
     output_voice = Path(output_voice)
     output_voice.parent.mkdir(parents=True, exist_ok=True)
 
-    tts = _load_xtts()
+    tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2")
     tts.tts_to_file(
         text=text,
         file_path=str(output_voice),
@@ -48,7 +41,7 @@ def voice_cloning(
 """
 txt_path = ("./dataset/txt/script_text_2.txt") # 대본 텍스트 파일
 input_voice_path = ("./dataset/mp3/input_voice.wav") # 음성 복제할 목소리
-output_voice_path = ("./dataset/mp3/output_voice_2.mp3") # 복제한 목소리로 대본을 읽은 결과물
+output_voice_path = ("./dataset/mp3/output_voice_3.mp3") # 복제한 목소리로 대본을 읽은 결과물
 
-voice_cloning(txt_path, input_voice_path, output_voice_path) 처럼 사용 가능
+voice_cloning(txt_path, input_voice_path, output_voice_path) # 처럼 사용 가능
 """
