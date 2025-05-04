@@ -1,90 +1,175 @@
-# refiner/utils.py dsdsdsds
+# utils.py
 
-import fitz  # PyMuPDF
+import fitz 
 import os
 from openai import OpenAI
-from django.conf import settings # Django 설정을 가져오기 위해 임포트
+from io import BytesIO 
+import logging
+from typing import Tuple, Optional, Dict, Any 
+from django.conf import settings
 
-def extract_text_from_pdf(pdf_file_obj):
+# 로깅 설정
+logger = logging.getLogger(__name__)
+
+
+API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_FALLBACK_API_KEY_IF_NEEDED")
+MODEL_NAME = "gpt-4o" 
+
+# --- 헬퍼 함수: PDF에서 텍스트 추출 ---
+def _extract_text_from_pdf_content(pdf_content: bytes) -> Optional[str]:
     """
-    PDF 파일 객체 또는 바이트에서 텍스트를 추출합니다.
-    메모리에 업로드된 파일이나 파일 바이트를 처리할 수 있습니다.
+    바이트(bytes)로 제공된 PDF 내용에서 페이지별 텍스트를 추출합니다.
+
+    Args:
+        pdf_content: PDF 파일의 내용 (바이트).
+
+    Returns:
+        페이지 구분자가 포함된 추출된 텍스트 (문자열), 또는 오류 발생 시 None.
     """
     full_text = ""
     try:
-        # fitz.open은 파일 스트림을 직접 처리할 수 있습니다.
-        # 여기서는 내용을 메모리로 읽어옵니다. 매우 큰 파일의 경우,
-        # 임시 파일에 먼저 저장하는 방식이 필요할 수 있습니다.
-        pdf_content = pdf_file_obj.read() # 업로드된 파일 객체에서 바이트 읽기
-        doc = fitz.open(stream=pdf_content, filetype="pdf") # 스트림으로 열기
-
-        print(f"업로드된 PDF에서 텍스트 추출 중...")
-        for i, page in enumerate(doc):
-            try:
-                page_text = page.get_text()
-                full_text += f"------Page {i + 1}------\n"
-                full_text += page_text + "\n\n"
-            except Exception as e:
-                print(f"경고: {i+1} 페이지 처리 중 오류 발생 - {e}")
-                full_text += f"------Page {i + 1}------\n"
-                full_text += "[오류: 이 페이지의 텍스트를 추출할 수 없습니다.]\n\n"
-        doc.close()
-        print("PDF 텍스트 추출 완료.")
-        return full_text
+        # 메모리에서 PDF 열기
+        doc = fitz.open(stream=pdf_content, filetype="pdf")
     except Exception as e:
-        print(f"오류: PDF 스트림 열기 또는 처리 중 오류 발생 - {e}")
-        # 필요시 특정 fitz 오류 처리 추가
+        logger.error(f"PDF 스트림 열기 오류: {e}", exc_info=True)
+        return None # 열기 실패 시 None 반환
+
+    logger.info(f"{len(doc)} 페이지 PDF에서 텍스트 추출 중...")
+    for i, page in enumerate(doc):
+        try:
+            page_text = page.get_text()
+            full_text += f"------Page {i + 1}------\n" # 페이지 구분자 추가
+            full_text += page_text.strip() + "\n\n" # 각 페이지 끝 공백 제거 및 줄바꿈 추가
+        except Exception as e:
+            logger.warning(f"경고: {i + 1} 페이지 처리 중 오류 발생 - {e}", exc_info=True)
+            full_text += f"------Page {i + 1}------\n"
+            full_text += "[오류: 이 페이지의 텍스트를 추출할 수 없습니다.]\n\n"
+
+    doc.close()
+    logger.info("PDF 텍스트 추출 완료.")
+    return full_text.strip() # 최종 결과 앞뒤 공백 제거
+
+# --- 헬퍼 함수: LLM으로 텍스트 정제 ---
+def _clean_text_with_llm(text_content: str, api_key: str, model: str) -> Optional[str]:
+    """
+    OpenAI API를 사용하여 추출된 텍스트를 정제합니다.
+
+    Args:
+        text_content: PDF에서 추출한 원본 텍스트.
+        api_key: OpenAI API 키.
+        model: 사용할 OpenAI 모델 이름.
+
+    Returns:
+        정제된 텍스트 (문자열), 또는 오류 발생 시 None.
+    """
+    if not api_key or api_key.startswith("YOUR_"): # API 키 유효성 검사
+        logger.error("OpenAI API 키가 올바르게 설정되지 않았습니다.")
         return None
 
-
-def clean_text_with_llm(text_content):
-    """LLM API를 사용하여 텍스트를 정리합니다."""
-    # Django 설정에서 API 키와 모델 이름 가져오기
-    api_key = settings.OPENAI_API_KEY
-    model = settings.OPENAI_MODEL_NAME
-
-    if not api_key: # API 키가 올바르게 로드되었는지 확인
-        print("오류: Django 설정에 OpenAI API 키가 구성되지 않았습니다.")
-        # 실제 API에서는 여기서 특정 오류 응답을 반환하거나
-        # 뷰에서 처리할 예외를 발생시킬 수 있습니다.
-        return None
-
-    print("텍스트 정리를 위해 OpenAI API 호출 중...")
+    logger.info(f"OpenAI 모델 ({model})을 사용하여 텍스트 정제 시작...")
     try:
         client = OpenAI(api_key=api_key)
-        # LLM에게 보낼 프롬프트 (이전과 동일)
+
+        # LLM 프롬프트 (기존과 유사, 명확성 위해 약간 조정)
         prompt = f"""
-다음 텍스트는 PDF 프레젠테이션에서 추출되었습니다.
-페이지별로 나누어져 있으며 '------Page X------' 형식으로 구분됩니다.
+다음 텍스트는 PDF 프레젠테이션에서 페이지별로 추출되었습니다.
+페이지는 '------Page X------'로 구분됩니다.
 
 작업 목표:
-1. 각 페이지 내용을 명확하게 유지합니다.
-2. 페이지 상단/하단에 반복적으로 나타나는 헤더나 푸터 (예: 회사 로고, 발표 제목, 날짜 등)를 제거합니다.
-3. 슬라이드 번호 또는 페이지 번호 (예: '------Page X------' 구분자 외에 페이지 내용 자체에 포함된 '2', '3', '4' 등의 숫자)를 제거합니다.
-4. 내용과 직접 관련 없는 장식용 기호, 불필요한 공백, 깨진 문자 등을 정리합니다.
-5. 최종 결과는 원본 페이지 구분을 유지하되 (------Page X------ 형식 사용), 각 페이지 내용이 자연스럽게 읽히도록 적절한 줄바꿈과 띄어쓰기를 사용해 가독성을 높입니다.
+1. '------Page X------' 구분자와 각 페이지의 주요 내용은 유지합니다.
+2. 반복적인 머리글/바닥글 (예: 회사 로고, 발표 제목, 날짜, 기밀 유지 안내 등 대부분 페이지에 나타나는 요소)을 제거합니다.
+3. 페이지 내용 자체에 포함된 슬라이드 번호나 페이지 번호 ('------Page X------' 구분자와 별개)를 제거합니다.
+4. 장식용 기호, 불필요한 공백, 깨진 문자 또는 PDF 추출 과정의 잡음(artifact)을 제거합니다.
+5. 최종 결과는 페이지 구조('------Page X------')를 유지하면서, 각 페이지 내용이 자연스럽게 읽히도록 적절한 줄바꿈과 띄어쓰기를 사용하여 가독성을 높입니다. 첫 페이지 구분자부터 시작하여 정제된 텍스트만 출력합니다.
 
 --- 원본 텍스트 시작 ---
 {text_content}
 --- 원본 텍스트 끝 ---
 
-정리된 텍스트:
+정제된 텍스트:
 """
+
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "당신은 텍스트 정리 전문가입니다. PDF 프레젠테이션에서 추출된 텍스트를 페이지 구분을 유지하면서 헤더/푸터, 페이지 번호 등을 제거하고 가독성 높게 다듬는 역할을 합니다."},
+                {"role": "system", "content": "당신은 텍스트 정제 전문가입니다. PDF 프레젠테이션에서 추출된 텍스트의 페이지 구조를 유지하면서 머리글/바닥글, 페이지 번호, 노이즈를 제거하여 가독성을 높이는 역할을 합니다."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2
+            temperature=0.2 # 일관성 있는 결과
         )
-        cleaned_text = response.choices[0].message.content.strip()
-        print("텍스트 정리 완료.")
-        return cleaned_text
-    except Exception as e:
-        print(f"오류: OpenAI API 호출 중 오류 발생 - {e}")
-        # 특정 오류(예: RateLimitError, AuthenticationError) 처리 고려
-        return None
 
-# API 응답에는 write_text_file 함수가 필요 없지만,
-# 서버 측 로깅 등을 위해 남겨둘 수 있습니다.
+        cleaned_text = response.choices[0].message.content.strip()
+        logger.info("OpenAI API를 통한 텍스트 정제 성공.")
+        return cleaned_text
+
+    except Exception as e:
+        logger.error(f"OpenAI API 호출 중 오류 발생: {e}", exc_info=True)
+        return None # 실패 시 None 반환
+
+# --- 메인 유틸리티 함수 ---
+def process_pdf_for_cleaning(pdf_file: Any) -> Dict[str, Optional[str]]:
+    """
+    업로드된 PDF 파일을 처리: 원본 텍스트를 추출하고 LLM으로 정제합니다.
+
+    Args:
+        pdf_file: 업로드된 PDF 파일을 나타내는 파일 유사 객체
+                  (예: Django의 UploadedFile).
+
+    Returns:
+        다음 키를 포함하는 딕셔너리:
+        - 'raw_text': 추출된 텍스트 (페이지 구분자 포함, str), 추출 실패 시 None.
+        - 'cleaned_text': LLM으로 정제된 텍스트 (str), 정제 실패 또는 raw_text가 None일 경우 None.
+        - 'error': 단계 중 오류 발생 시 오류 메시지 (str), 성공 시 None.
+    """
+    result: Dict[str, Optional[str]] = {
+        "raw_text": None,
+        "cleaned_text": None,
+        "error": None
+    }
+
+    try:
+        pdf_content = pdf_file.read()
+        logger.info(f"업로드된 PDF 파일에서 {len(pdf_content)} 바이트를 읽었습니다.")
+
+        # 1. 원본 텍스트 추출
+        raw_text = _extract_text_from_pdf_content(pdf_content)
+        if raw_text is None:
+            result["error"] = "PDF에서 텍스트를 추출하지 못했습니다."
+            logger.error(result["error"])
+            return result 
+        result["raw_text"] = raw_text
+
+        # 2. LLM을 사용하여 텍스트 정제
+        current_api_key = os.getenv("OPENAI_API_KEY") 
+        if not current_api_key or current_api_key == "YOUR_FALLBACK_API_KEY_IF_NEEDED":
+             result["error"] = "OpenAI API 키가 서버에 설정되지 않았습니다."
+             logger.error(result["error"])
+             return result 
+
+        cleaned_text = _clean_text_with_llm(raw_text, current_api_key, MODEL_NAME)
+        if cleaned_text is None:
+            result["error"] = "언어 모델을 사용하여 텍스트를 정제하는 데 실패했습니다."
+            logger.error(result["error"])
+            # 정제 실패 시에도 원본 텍스트와 오류 메시지를 반환합니다.
+            return result
+        result["cleaned_text"] = cleaned_text
+
+        logger.info("PDF 처리 및 정제가 성공적으로 완료되었습니다.")
+        return result
+
+    except Exception as e:
+        logger.error(f"PDF 처리 중 예상치 못한 오류 발생: {e}", exc_info=True)
+        result["error"] = "처리 중 예상치 못한 오류가 발생했습니다."
+
+        return result
+
+def write_text_file(filename: str, content: str) -> bool:
+    """지정된 파일에 내용을 씁니다."""
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(content)
+        logger.info(f"'{filename}'에 내용을 성공적으로 썼습니다.")
+        return True
+    except Exception as e:
+        logger.error(f"파일 '{filename}' 쓰기 오류: {e}", exc_info=True)
+        return False
