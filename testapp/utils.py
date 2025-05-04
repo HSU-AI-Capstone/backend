@@ -1,6 +1,7 @@
+
 # utils.py
 
-import fitz 
+import fitz
 import os
 from openai import OpenAI
 from io import BytesIO 
@@ -51,17 +52,6 @@ def _extract_text_from_pdf_content(pdf_content: bytes) -> Optional[str]:
 
 # --- 헬퍼 함수: LLM으로 텍스트 정제 ---
 def _clean_text_with_llm(text_content: str, api_key: str, model: str) -> Optional[str]:
-    """
-    OpenAI API를 사용하여 추출된 텍스트를 정제합니다.
-
-    Args:
-        text_content: PDF에서 추출한 원본 텍스트.
-        api_key: OpenAI API 키.
-        model: 사용할 OpenAI 모델 이름.
-
-    Returns:
-        정제된 텍스트 (문자열), 또는 오류 발생 시 None.
-    """
     if not api_key or api_key.startswith("YOUR_"): # API 키 유효성 검사
         logger.error("OpenAI API 키가 올바르게 설정되지 않았습니다.")
         return None
@@ -108,19 +98,7 @@ def _clean_text_with_llm(text_content: str, api_key: str, model: str) -> Optiona
 
 # --- 메인 유틸리티 함수 ---
 def process_pdf_for_cleaning(pdf_file: Any) -> Dict[str, Optional[str]]:
-    """
-    업로드된 PDF 파일을 처리: 원본 텍스트를 추출하고 LLM으로 정제합니다.
 
-    Args:
-        pdf_file: 업로드된 PDF 파일을 나타내는 파일 유사 객체
-                  (예: Django의 UploadedFile).
-
-    Returns:
-        다음 키를 포함하는 딕셔너리:
-        - 'raw_text': 추출된 텍스트 (페이지 구분자 포함, str), 추출 실패 시 None.
-        - 'cleaned_text': LLM으로 정제된 텍스트 (str), 정제 실패 또는 raw_text가 None일 경우 None.
-        - 'error': 단계 중 오류 발생 시 오류 메시지 (str), 성공 시 None.
-    """
     result: Dict[str, Optional[str]] = {
         "raw_text": None,
         "cleaned_text": None,
@@ -173,3 +151,116 @@ def write_text_file(filename: str, content: str) -> bool:
     except Exception as e:
         logger.error(f"파일 '{filename}' 쓰기 오류: {e}", exc_info=True)
         return False
+=======
+from pdf2image import convert_from_path
+from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
+import subprocess
+import tempfile
+from contextlib import ExitStack
+from pathlib import Path
+
+
+
+
+# ────────────────────────────────────────────────────────────
+# 유틸: 작업 디렉터리 컨텍스트  (요청별로 깨끗하게 쓰고 자동 삭제)
+# ────────────────────────────────────────────────────────────
+def _workdir(prefix: str = "lecture_") -> tempfile.TemporaryDirectory:
+    """
+    요청마다 고유한 임시 디렉터리를 만들고, 블록을 벗어나면
+    전체를 지워준다.
+    """
+    return tempfile.TemporaryDirectory(prefix=prefix)
+
+
+# ────────────────────────────────────────────────────────────
+# 1) PPTX ➜ 이미지
+# ────────────────────────────────────────────────────────────
+def _ppt_to_images(pptx: Path, slide_dir: Path) -> list[Path]:
+    """LibreOffice CLI로 pptx → pdf, pdf → PNG 슬라이드 저장"""
+    slide_dir.mkdir(parents=True, exist_ok=True)
+
+    # ① PPTX → PDF
+    pdf_path = slide_dir / "slides.pdf"
+    subprocess.run(
+        [
+            "soffice",
+            "--headless",
+            "--invisible",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(slide_dir),
+            str(pptx),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    # ② PDF → 이미지
+    for idx, page in enumerate(convert_from_path(pdf_path, fmt="png"), start=1):
+        page.save(slide_dir / f"slide_{idx:04d}.png", "PNG")
+
+    return sorted(slide_dir.glob("slide_*.png"))  # 정렬 안전
+
+
+# ────────────────────────────────────────────────────────────
+# 2) 이미지 + 오디오 → 단일 클립
+# ────────────────────────────────────────────────────────────
+def _slide_clip(image_path: Path, audio_path: Path) -> ImageClip:
+    audio = AudioFileClip(str(audio_path))
+    clip = (
+        ImageClip(str(image_path))
+        .with_duration(audio.duration)
+        .with_audio(audio)
+    )
+    return clip
+
+
+# ────────────────────────────────────────────────────────────
+# 3) 최종 빌더
+# ────────────────────────────────────────────────────────────
+def build_lecture_video(
+    pptx_file: str,
+    audio_dir: str,
+    output_path: str,
+    fps: int = 24,
+) -> None:
+    """
+    • 사용 단계는 한 함수로 묶어 단순화
+    • 작업이 끝나면 이미지·중간 PDF·임시 오디오 모두 삭제
+    • audio_dir 자체도 임시라면 호출측에서 _workdir()로 감싸면 됨
+    """
+    with _workdir() as temp_root:
+        temp_root = Path(temp_root)
+        slide_dir = temp_root / "slides"
+        pptx = Path(pptx_file).resolve()
+
+        # 1. 이미지 추출
+        _ppt_to_images(pptx, slide_dir)
+
+        # 2. 오디오 파일 목록
+        audios = sorted(
+            Path(audio_dir).glob("*.mp[34]") | Path(audio_dir).glob("*.wav") | Path(audio_dir).glob("*.m4a")
+        )
+        slides = sorted(slide_dir.glob("slide_*.png"))
+        if len(slides) != len(audios):
+            raise ValueError("슬라이드 수와 오디오 수가 일치하지 않습니다.")
+
+        # 3. 비디오 조립 & 자원 회수
+        with ExitStack() as stack:
+            clips = [
+                stack.enter_context(_slide_clip(s, a)) for s, a in zip(slides, audios, strict=True)
+            ]
+            final_video = concatenate_videoclips(clips, method="compose")
+            final_video.write_videofile(
+                output_path,
+                fps=fps,
+                codec="libx264",
+                audio_codec="aac",
+                temp_audiofile=temp_root / "temp-audio.m4a",
+                remove_temp=True,
+            )
+            final_video.close()  # 명시적 종료
+
+
