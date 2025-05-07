@@ -28,3 +28,4 @@ soundfile
 grpcio
 tts
 encodec
+PyMySQL
