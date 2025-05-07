@@ -175,7 +175,7 @@ tqdm==4.67.1
 trainer==0.0.36
 traits==7.0.2
 transformers==4.51.3
-tts>=0.23.0
+tts>=0.22.0
 typeguard==4.4.2
 typer==0.15.3
 typing-inspection==0.4.0
