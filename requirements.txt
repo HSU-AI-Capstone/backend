@@ -51,7 +51,7 @@ fonttools==4.57.0
 frozenlist==1.6.0
 fsspec==2025.3.2
 g2pkk==0.1.2
-grpcio==1.71.0
+grpcio==1.48.2
 gruut==2.2.3
 gruut-ipa==0.13.0
 gruut_lang_de==2.0.1
@@ -106,7 +106,7 @@ nipype==1.10.0
 nltk==3.9.1
 num2words==0.5.14
 numba==0.60.0
-numpy>=1.22,<1.26
+numpy>=1.25.2,<1.26
 openai==1.77.0
 packaging==25.0
 pandas==1.5.3
@@ -175,7 +175,7 @@ tqdm==4.67.1
 trainer==0.0.36
 traits==7.0.2
 transformers==4.51.3
-tts>=0.22.0
+tts==0.22.0
 typeguard==4.4.2
 typer==0.15.3
 typing-inspection==0.4.0
