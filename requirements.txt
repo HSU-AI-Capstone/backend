@@ -108,7 +108,7 @@ nipype==1.10.0
 nltk==3.9.1
 num2words==0.5.14
 numba==0.60.0
-numpy==1.22.0
+numpy>=1.25.2  # or higher
 openai==1.77.0
 packaging==23.2
 pandas==1.5.3
