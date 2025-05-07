@@ -1,0 +1,67 @@
+# core frameworks
+django
+djangorestframework
+drf-spectacular
+drf-yasg
+flask
+jinja2
+python-dotenv
+
+# AI / DL
+torch
+torchaudio
+transformers
+huggingface-hub
+openai
+httpx
+cryptography
+tqdm
+tokenizers
+einops
+filelock
+pydantic
+protobuf
+absl-py
+
+# audio & processing
+librosa
+moviepy
+pdf2image
+matplotlib
+pandas
+numpy
+scikit-learn
+scipy
+regex
+soundfile
+click
+decorator
+joblib
+nltk
+python-dateutil
+six
+pillow
+
+# TTS
+tts
+encodec
+g2pkk
+gruut
+gruut_lang_en
+bnnumerizer
+bnunicodenormalizer
+srsly
+thinc
+
+# grpc
+grpcio
+
+# others
+requests
+urllib3
+certifi
+idna
+charset-normalizer
+
+# db
+PyMySQL
