@@ -1,5 +1,5 @@
 # ppt_generator_app/utils.py
-
+ 
 import openai
 import os
 import subprocess
