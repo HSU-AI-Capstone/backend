@@ -1,12 +1,12 @@
 # backend/urls.py
 
 from django.contrib import admin
-from django.urls import path, include, re_path # include와 re_path 추가 확인
-from rest_framework import permissions # permissions 임포트 확인 (AllowAny 사용 시)
-from rest_framework.permissions import AllowAny # 명시적으로 AllowAny 임포트 (기존 코드 방식 유지)
-from drf_yasg.views import get_schema_view
-from drf_yasg import openapi
 from django.http import JsonResponse
+from django.urls import path, include, re_path  # include와 re_path 추가 확인
+from drf_yasg import openapi
+from drf_yasg.views import get_schema_view
+from rest_framework.permissions import AllowAny  # 명시적으로 AllowAny 임포트 (기존 코드 방식 유지)
+
 
 # --- 간단한 루트 뷰 (기존 코드 유지) ---
 def home(request):
@@ -46,7 +46,7 @@ urlpatterns = [
     # 기존 testapp 포함 (경로 명확화: /api/v1/test/)
     path('api/v1/test/', include('testapp.urls')),
     # 새로 추가된 script_api 포함 (경로 명확화: /api/v1/script/)
-    path('api/v1/script/', include('script_api.urls')), # ✅ 새로운 앱 URL 추가
+    # path('api/v1/script/', include('script_api.urls')), # ✅ 새로운 앱 URL 추가
 
     # 4. Swagger 및 ReDoc 문서 경로 (기존 re_path 방식 유지)
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),

@@ -7,6 +7,23 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
+import fitz
+from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
+from pdf2image import convert_from_path
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+from TTS.api import TTS
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+API_KEY = os.getenv(
+    "OPENAI_API_KEY", "YOUR_FALLBACK_API_KEY"
+)  # 실제 키로 교체하거나 환경 변수 설정
+MODEL_NAME = "gpt-4o"
 import os
 import openai
 from django.conf import settings # Django 설정 사용
@@ -107,25 +124,6 @@ def generate_script_from_text(input_text: str) -> str:
         print(f"OpenAI API 호출 중 예상치 못한 오류 발생: {e}")
         raise Exception(f"예상치 못한 오류가 발생했습니다: {e}") from e
 
-import fitz
-import openai
-from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
-from openai import OpenAI
-from pdf2image import convert_from_path
-
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-from TTS.api import TTS
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
-
-API_KEY = os.getenv(
-    "OPENAI_API_KEY", "YOUR_FALLBACK_API_KEY"
-)  # 실제 키로 교체하거나 환경 변수 설정
-MODEL_NAME = "gpt-4o"
 
 
 # --- OpenAI 클라이언트 초기화 ---
