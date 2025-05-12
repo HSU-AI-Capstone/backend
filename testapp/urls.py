@@ -1,5 +1,4 @@
 from backend.urls import path
-
 from . import views
 
 urlpatterns = [
