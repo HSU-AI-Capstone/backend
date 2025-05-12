@@ -26,13 +26,13 @@ API_KEY = os.getenv(
 MODEL_NAME = "gpt-4o"
 import os
 import openai
-from django.conf import settings # Django 설정 사용
-from openai import OpenAI, AuthenticationError, APIError # 구체적인 에러 임포트
+from django.conf import settings  # Django 설정 사용
+from openai import OpenAI, AuthenticationError, APIError  # 구체적인 에러 임포트
 
 # --- OpenAI 클라이언트 초기화 ---
 # 모듈 로드 시 한 번만 클라이언트를 초기화합니다.
 # 초기화 중 발생할 수 있는 AuthenticationError를 처리합니다.
-client = None # 초기값 None
+client = None  # 초기값 None
 try:
     # settings.py에서 API 키를 올바르게 가져오는지 확인
     api_key = settings.OPENAI_API_KEY
@@ -48,12 +48,13 @@ except AuthenticationError as e:
     print(f"치명적 오류: OpenAI 인증 실패. API 키를 확인하세요. 오류: {e}")
     # OpenAI 없이 앱이 작동할 수 없다면, 서비스 시작을 막거나
     # 서비스가 비활성화되었음을 나타내는 플래그를 설정할 수 있습니다.
-    client = None # 초기화 실패 시 client는 None 상태 유지
+    client = None  # 초기화 실패 시 client는 None 상태 유지
 except Exception as e:
     print(f"치명적 오류: OpenAI 클라이언트 초기화 중 예상치 못한 오류 발생: {e}")
     client = None
 
 # --- 스크립트 생성 로직 ---
+
 
 def generate_script_from_text(input_text: str) -> str:
     """
@@ -72,7 +73,9 @@ def generate_script_from_text(input_text: str) -> str:
     """
     if not client:
         # 클라이언트가 초기화되지 않은 경우 에러 발생
-        raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다. API 키와 설정을 확인하세요.")
+        raise ValueError(
+            "OpenAI 클라이언트가 초기화되지 않았습니다. API 키와 설정을 확인하세요."
+        )
 
     if not input_text or not input_text.strip():
         raise ValueError("입력 텍스트는 비어 있을 수 없습니다.")
@@ -104,15 +107,18 @@ def generate_script_from_text(input_text: str) -> str:
         response = client.chat.completions.create(
             model=model_engine,
             messages=[
-                {"role": "system", "content": "당신은 한국어로 수업 대본을 구어체로 작성하는 전문가입니다."},
-                {"role": "user", "content": prompt_instructions}
+                {
+                    "role": "system",
+                    "content": "당신은 한국어로 수업 대본을 구어체로 작성하는 전문가입니다.",
+                },
+                {"role": "user", "content": prompt_instructions},
             ],
             temperature=0.7,
             # max_tokens=3000 # 필요시 최대 토큰 길이 설정 고려
         )
         generated_script = response.choices[0].message.content
         print("스크립트 생성 완료.")
-        return generated_script.strip() # 앞뒤 공백 제거 후 반환
+        return generated_script.strip()  # 앞뒤 공백 제거 후 반환
 
     except APIError as e:
         # API 관련 오류 처리 (예: 사용량 제한, 서버 문제)
@@ -123,7 +129,6 @@ def generate_script_from_text(input_text: str) -> str:
         # 그 외 API 호출 중 발생할 수 있는 다른 오류 처리
         print(f"OpenAI API 호출 중 예상치 못한 오류 발생: {e}")
         raise Exception(f"예상치 못한 오류가 발생했습니다: {e}") from e
-
 
 
 # --- OpenAI 클라이언트 초기화 ---
