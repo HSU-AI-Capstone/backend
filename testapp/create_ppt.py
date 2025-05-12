@@ -9,12 +9,14 @@ from pdf2image import convert_from_path
 
 logger = logging.getLogger(__name__)
 
+
 def _workdir(prefix: str = "lecture_") -> tempfile.TemporaryDirectory:
     """
     요청마다 고유한 임시 디렉터리를 만들고, 블록을 벗어나면
     전체를 지워준다.
     """
     return tempfile.TemporaryDirectory(prefix=prefix)
+
 
 def _ppt_to_images(pptx: Path, slide_dir: Path) -> list[Path]:
     """LibreOffice CLI로 pptx → pdf, pdf → PNG 슬라이드 저장"""
@@ -43,14 +45,12 @@ def _ppt_to_images(pptx: Path, slide_dir: Path) -> list[Path]:
 
     return sorted(slide_dir.glob("slide_*.png"))
 
+
 def _slide_clip(image_path: Path, audio_path: Path) -> ImageClip:
     audio = AudioFileClip(str(audio_path))
-    clip = (
-        ImageClip(str(image_path))
-        .with_duration(audio.duration)
-        .with_audio(audio)
-    )
+    clip = ImageClip(str(image_path)).with_duration(audio.duration).with_audio(audio)
     return clip
+
 
 def build_lecture_video(
     pptx_file: str,
@@ -73,7 +73,9 @@ def build_lecture_video(
 
         # 2. 오디오 파일 목록
         audios = sorted(
-            Path(audio_dir).glob("*.mp[34]") | Path(audio_dir).glob("*.wav") | Path(audio_dir).glob("*.m4a")
+            Path(audio_dir).glob("*.mp[34]")
+            | Path(audio_dir).glob("*.wav")
+            | Path(audio_dir).glob("*.m4a")
         )
         slides = sorted(slide_dir.glob("slide_*.png"))
         if len(slides) != len(audios):
@@ -82,7 +84,8 @@ def build_lecture_video(
         # 3. 비디오 조립 & 자원 회수
         with ExitStack() as stack:
             clips = [
-                stack.enter_context(_slide_clip(s, a)) for s, a in zip(slides, audios, strict=True)
+                stack.enter_context(_slide_clip(s, a))
+                for s, a in zip(slides, audios, strict=True)
             ]
             final_video = concatenate_videoclips(clips, method="compose")
             final_video.write_videofile(
@@ -93,4 +96,4 @@ def build_lecture_video(
                 temp_audiofile=temp_root / "temp-audio.m4a",
                 remove_temp=True,
             )
-            final_video.close() 
+            final_video.close()

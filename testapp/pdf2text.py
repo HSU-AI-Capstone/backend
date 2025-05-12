@@ -5,6 +5,7 @@ import fitz
 
 logger = logging.getLogger(__name__)
 
+
 def extract_text_from_pdf_content(pdf_content: bytes) -> Optional[str]:
     """
     바이트(bytes)로 제공된 PDF 내용에서 페이지별 텍스트를 추출합니다.
@@ -30,10 +31,12 @@ def extract_text_from_pdf_content(pdf_content: bytes) -> Optional[str]:
             full_text += f"------Page {i + 1}------\n"
             full_text += page_text.strip() + "\n\n"
         except Exception as e:
-            logger.warning(f"경고: {i + 1} 페이지 처리 중 오류 발생 - {e}", exc_info=True)
+            logger.warning(
+                f"경고: {i + 1} 페이지 처리 중 오류 발생 - {e}", exc_info=True
+            )
             full_text += f"------Page {i + 1}------\n"
             full_text += "[오류: 이 페이지의 텍스트를 추출할 수 없습니다.]\n\n"
 
     doc.close()
     logger.info("PDF 텍스트 추출 완료.")
-    return full_text.strip() 
+    return full_text.strip()
