@@ -6,7 +6,7 @@ from elevenlabs.client import ElevenLabs
 # ────────────────────────── #
 # 1. 환경 설정
 # ────────────────────────── #
-API_KEY  = "sk_506c28196fcaf06a7fefb6e7b536b6cea2c38a58786371a5"         # ← 실제 키로 바꿔주세요
+API_KEY  = ""         # ← 실제 키로 바꿔주세요
 VOICE_ID = "brs1mKx3KdAFKU7FzvMN"        # 원하는 화자 ID
 MODEL_ID = "eleven_multilingual_v2"      # 모델 ID
 
