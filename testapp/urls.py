@@ -7,4 +7,3 @@ urlpatterns = [
     path("lectures/", LectureListView.as_view(), name="lecture_list"),
     path("lectures/<int:id>", LectureDetailView.as_view(), name="lecture_detail"),
 ]
-
