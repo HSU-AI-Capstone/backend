@@ -1,13 +1,20 @@
 # backend/settings/base.py
 import os
 from pathlib import Path
+
 import pymysql
+from dotenv import load_dotenv
 
 pymysql.install_as_MySQLdb()
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.getenv("SECRET_KEY", "insecure-key")
+S3_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
+S3_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
+S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME")
+S3_REGION = os.getenv("AWS_S3_REGION")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
