@@ -615,3 +615,6 @@ yarl==1.20.0
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
+
+elevenlabs==1.57.0
+websockets==15.0.1
