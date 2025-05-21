@@ -23,6 +23,7 @@ class LectureUploadSerializer(serializers.Serializer):
             value.seek(0)
         return value
 
+
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lecture

@@ -22,7 +22,7 @@ from .utils import mock_generate_lecture_video
 
 class CustomPagination(PageNumberPagination):
     page_size = 30
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
@@ -82,7 +82,7 @@ class LectureListView(generics.ListAPIView):
     queryset = Lecture.objects.all()
     serializer_class = LectureSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ['title', 'professor']
+    search_fields = ["title", "professor"]
     pagination_class = CustomPagination  # ✅ 추가된 부분
 
     @swagger_auto_schema(
@@ -94,19 +94,19 @@ class LectureListView(generics.ListAPIView):
         """,
         manual_parameters=[
             openapi.Parameter(
-                'search',
+                "search",
                 openapi.IN_QUERY,
                 description="강의 제목 또는 교수명 검색어 (부분 매칭 가능)",
                 type=openapi.TYPE_STRING,
             ),
             openapi.Parameter(
-                'page',
+                "page",
                 openapi.IN_QUERY,
                 description="조회할 페이지 번호 (기본값 1)",
                 type=openapi.TYPE_INTEGER,
             ),
             openapi.Parameter(
-                'page_size',
+                "page_size",
                 openapi.IN_QUERY,
                 description="한 페이지에 조회할 개수 (최대 100)",
                 type=openapi.TYPE_INTEGER,
