@@ -17,10 +17,7 @@ def upload_file_to_s3(local_file_path: str, s3_filename: str) -> str:
         Filename=local_file_path,
         Bucket=bucket,
         Key=s3_key,
-        ExtraArgs={
-            "ContentType": "video/mp4"
-            # "ACL": "public-read"
-        },
+        ExtraArgs={"ContentType": "video/mp4", "ACL": "public-read"},
     )
 
     return f"https://{bucket}.s3.{settings.S3_REGION}.amazonaws.com/{s3_key}"

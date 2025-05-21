@@ -17,6 +17,7 @@ from .serializers import (
     LectureDetailSerializer,
     LectureUploadSerializer,
 )
+from .utils import mock_generate_lecture_video
 
 
 def index(request):
@@ -51,6 +52,7 @@ class UploadLectureView(APIView):
         serializer.is_valid(raise_exception=True)
 
         subject = serializer.validated_data["subject"]
+        description = serializer.validated_data["description"]
         professor = serializer.validated_data["professor"]
         pdf_file = serializer.validated_data["file"]
 
@@ -61,6 +63,7 @@ class UploadLectureView(APIView):
                     f.write(chunk)
 
             video_path = mock_generate_lecture_video(pdf_path)
+            # video_path = generate_lecture_video(subject, description, pdf_path)
             video_filename = f"{uuid.uuid4().hex}.mp4"
             video_url = upload_file_to_s3(video_path, video_filename)
 

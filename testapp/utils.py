@@ -10,7 +10,7 @@ from .use_gpt import (
     generate_lesson_script,
     generate_and_execute_ppt_code,
 )
-from .voice import voice_cloning
+from .voice import tts_pages_to_mp3
 
 
 def mock_generate_lecture_video(pdf_path: str) -> str:
@@ -35,12 +35,13 @@ def mock_generate_lecture_video(pdf_path: str) -> str:
     return target_path
 
 
-def generate_lecture_video(subject: str, pdf_path: str) -> str:
+def generate_lecture_video(subject: str, description: str, pdf_path: str) -> str:
     """
     PDF 파일을 기반으로 강의 영상을 생성합니다.
 
     Args:
         subject: 강의 주제
+        description: 강의에 대한 설명
         pdf_path: PDF 파일 경로
 
     Returns:
@@ -69,6 +70,7 @@ def generate_lecture_video(subject: str, pdf_path: str) -> str:
         ppt_structure = generate_ppt_structure(
             input_text_file=str(ppt_structure_file),
             output_ppt_file=str(ppt_structure_file),
+            description=description,
         )
         if not ppt_structure:
             raise ValueError("PPT 구조를 생성할 수 없습니다.")
@@ -77,6 +79,7 @@ def generate_lecture_video(subject: str, pdf_path: str) -> str:
         script = generate_lesson_script(
             input_text_file=str(ppt_structure_file),  # PPT 구조를 기반으로 대본 생성
             output_script_file=str(script_file),
+            description=description,
         )
         if not script:
             raise ValueError("강의 대본을 생성할 수 없습니다.")
@@ -98,27 +101,14 @@ def generate_lecture_video(subject: str, pdf_path: str) -> str:
         if not ppt_code:
             raise ValueError("PPT 생성 코드를 생성할 수 없습니다.")
 
-        # 4. 음성 생성
+        # 4. 음성 생성 (ElevenLabs TTS 사용)
         audio_dir = temp_dir / "audio"
         audio_dir.mkdir(exist_ok=True)
 
-        # 대본을 페이지별로 분리
-        pages = script.split("----page")
-        for i, page_content in enumerate(
-            pages[1:], 1
-        ):  # 첫 번째 요소는 빈 문자열이므로 건너뜀
-            page_script_file = temp_dir / f"page_{i}_script.txt"
-            with open(page_script_file, "w", encoding="utf-8") as f:
-                f.write(page_content.strip())
-
-            # 각 페이지별 음성 생성
-            output_voice = audio_dir / f"page_{i}_audio.mp3"
-            voice_cloning(
-                script_path=str(page_script_file),
-                input_voice="path/to/reference_voice.wav",  # TODO: 참조 음성 파일 경로 설정 필요
-                output_voice=str(output_voice),
-                language="ko",
-            )
+        # ElevenLabs TTS를 사용하여 대본을 MP3로 변환
+        tts_pages_to_mp3(
+            txt_path=str(script_file), out_dir=str(audio_dir), base_name="lecture_audio"
+        )
 
         # 5. 최종 영상 생성
         output_video = temp_dir / "lecture_video.mp4"

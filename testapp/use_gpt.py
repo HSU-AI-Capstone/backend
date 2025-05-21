@@ -33,20 +33,30 @@ def get_openai_client(api_key: str = API_KEY) -> Optional[openai.OpenAI]:
 
 
 def generate_ppt_structure(
-    input_text_file: str, output_ppt_file: str, model: str = MODEL_NAME, custom_api_key: Optional[str] = None
+    input_text_file: str,
+    output_ppt_file: str,
+    description: str = "",
+    model: str = MODEL_NAME,
+    custom_api_key: Optional[str] = None,
 ) -> Optional[str]:
     """텍스트를 PPT 구조로 변환합니다."""
     text_content = ""
     try:
         logger.info(f"'{input_text_file}' 파일 읽기 시도...")
-        with open(input_text_file, 'r', encoding='utf-8') as f:
+        with open(input_text_file, "r", encoding="utf-8") as f:
             text_content = f.read()
         if not text_content.strip():
-            logger.warning(f"'{input_text_file}' 파일이 비어있거나 내용이 없습니다. 처리를 건너뜁니다.")
+            logger.warning(
+                f"'{input_text_file}' 파일이 비어있거나 내용이 없습니다. 처리를 건너뜁니다."
+            )
             return None
-        logger.info(f"'{input_text_file}' 파일 읽기 완료 (내용 길이: {len(text_content)}자).")
+        logger.info(
+            f"'{input_text_file}' 파일 읽기 완료 (내용 길이: {len(text_content)}자)."
+        )
     except FileNotFoundError:
-        logger.error(f"입력 파일 '{input_text_file}'을(를) 찾을 수 없습니다. 파일 경로를 확인해주세요.")
+        logger.error(
+            f"입력 파일 '{input_text_file}'을(를) 찾을 수 없습니다. 파일 경로를 확인해주세요."
+        )
         return None
     except Exception as e:
         logger.error(f"'{input_text_file}' 파일 읽기 중 오류 발생: {e}", exc_info=True)
@@ -54,28 +64,32 @@ def generate_ppt_structure(
 
     system_message = """
     당신은 교육 콘텐츠를 파워포인트 프레젠테이션용으로 구조화하는 데 특화된 AI 어시스턴트입니다.
-    주어진 원본 텍스트(수업 계획이나 강의 자료)를 파워포인트 슬라이드 제작에 바로 사용할 수 있도록,
+    주어진 원본 텍스트(수업 계획이나 강의 자료)와 강의 설명을 바탕으로 파워포인트 슬라이드 제작에 바로 사용할 수 있도록,
     명확하고 간결하며 논리적으로 구성된 구조로 재포맷하는 것이 당신의 임무입니다.
 
     주요 지침:
-    1.  **주제 식별**: 텍스트 내의 주요 주제와 하위 주제를 파악합니다.
+    1.  **주제 식별**: 텍스트와 강의 설명을 통해 주요 주제와 하위 주제를 파악합니다.
     2.  **슬라이드 제목**: 각 주요 내용 단락이나 섹션의 핵심을 나타내는 명확한 제목을 생성합니다.
-    3.  **슬라이드 내용**: 각 슬라이드의 내용은 원본 텍스트를 바탕으로 핵심 정보를 글머리 기호로 요약합니다.
-    4.  **논리적 흐름 유지**: 원본 텍스트의 의미와 논리적 순서를 최대한 유지합니다.
+    3.  **슬라이드 내용**: 각 슬라이드의 내용은 원본 텍스트와 강의 설명을 바탕으로 핵심 정보를 글머리 기호로 요약합니다.
+    4.  **논리적 흐름 유지**: 원본 텍스트의 의미와 논리적 순서를 최대한 유지하면서, 강의 설명에 맞게 내용을 조정합니다.
     5.  **간결성**: 전문 용어나 복잡한 문장보다는 이해하기 쉬운 표현을 사용합니다.
     6.  **형식**: 결과물은 슬라이드 제목과 내용이 명확히 구분되도록 구조화합니다.
     7.  **언어**: 결과는 한국어로 작성합니다.
     """
 
     user_message = f"""
-    다음 텍스트 내용을 기반으로 파워포인트 프레젠테이션 슬라이드 구조를 생성해주세요:
+    다음 텍스트 내용과 강의 설명을 기반으로 파워포인트 프레젠테이션 슬라이드 구조를 생성해주세요:
+
+    --- 강의 설명 ---
+    {description}
+    --- 강의 설명 끝 ---
 
     --- 원본 텍스트 시작 ---
     {text_content}
     --- 원본 텍스트 끝 ---
     """
 
-    structured_content = None 
+    structured_content = None
     try:
         logger.info(f"OpenAI 모델({model})에 PPT 구조 생성 요청을 보냅니다...")
         response = client.chat.completions.create(
@@ -104,43 +118,56 @@ def generate_ppt_structure(
         logger.error(f"OpenAI API 호출 중 예상치 못한 오류 발생: {e}", exc_info=True)
         return None
 
-    if structured_content: 
+    if structured_content:
         try:
             logger.info(f"생성된 PPT 구조를 '{output_ppt_file}' 파일로 저장 시도...")
-            with open(output_ppt_file, 'w', encoding='utf-8') as f:
+            with open(output_ppt_file, "w", encoding="utf-8") as f:
                 f.write(structured_content)
-            logger.info(f"생성된 PPT 구조를 '{output_ppt_file}' 파일로 성공적으로 저장했습니다.")
-            return structured_content 
+            logger.info(
+                f"생성된 PPT 구조를 '{output_ppt_file}' 파일로 성공적으로 저장했습니다."
+            )
+            return structured_content
         except IOError as e:
-            logger.error(f"'{output_ppt_file}' 파일 저장 중 입출력 오류 발생: {e}", exc_info=True)
-            return None 
+            logger.error(
+                f"'{output_ppt_file}' 파일 저장 중 입출력 오류 발생: {e}", exc_info=True
+            )
+            return None
         except Exception as e:
-            logger.error(f"'{output_ppt_file}' 파일 저장 중 예상치 못한 오류 발생: {e}", exc_info=True)
-            return None 
+            logger.error(
+                f"'{output_ppt_file}' 파일 저장 중 예상치 못한 오류 발생: {e}",
+                exc_info=True,
+            )
+            return None
     else:
         logger.warning("PPT 구조 내용이 없어 파일 저장을 건너뜁니다.")
         return None
 
 
-
 def generate_lesson_script(
     input_text_file: str,
     output_script_file: str,
+    description: str = "",
     model: str = DEFAULT_SCRIPT_MODEL,
-    custom_api_key: Optional[str] = None
+    custom_api_key: Optional[str] = None,
 ) -> Optional[str]:
-    """ 입력 텍스트 파일의 내용을 바탕으로 수업 대본을 생성하고 지정된 파일에 저장합니다."""
+    """입력 텍스트 파일의 내용을 바탕으로 수업 대본을 생성하고 지정된 파일에 저장합니다."""
     input_text = ""
     try:
         logger.info(f"'{input_text_file}' 파일 읽기 시도...")
-        with open(input_text_file, 'r', encoding='utf-8') as f:
+        with open(input_text_file, "r", encoding="utf-8") as f:
             input_text = f.read()
         if not input_text.strip():
-            logger.warning(f"'{input_text_file}' 파일이 비어있습니다. 내용을 확인해주세요.")
+            logger.warning(
+                f"'{input_text_file}' 파일이 비어있습니다. 내용을 확인해주세요."
+            )
             return None
-        logger.info(f"'{input_text_file}' 파일 읽기 완료 (내용 길이: {len(input_text)}자).")
+        logger.info(
+            f"'{input_text_file}' 파일 읽기 완료 (내용 길이: {len(input_text)}자)."
+        )
     except FileNotFoundError:
-        logger.error(f"입력 파일 '{input_text_file}'을(를) 찾을 수 없습니다. 파일 경로를 확인해주세요.")
+        logger.error(
+            f"입력 파일 '{input_text_file}'을(를) 찾을 수 없습니다. 파일 경로를 확인해주세요."
+        )
         return None
     except Exception as e:
         logger.error(f"'{input_text_file}' 파일 읽기 중 오류 발생: {e}", exc_info=True)
@@ -152,7 +179,12 @@ def generate_lesson_script(
         return None
 
     prompt_instructions = f"""
-    당신은 주어진 텍스트 내용을 바탕으로, 실제 사람이 편안하게 진행하는 수업 대본을 작성하는 AI입니다. 다음 요구사항에 맞춰 자연스러운 한국어 구어체 대본을 생성해주세요.
+    당신은 주어진 텍스트 내용과 강의 설명을 바탕으로, 실제 사람이 편안하게 진행하는 수업 대본을 작성하는 AI입니다. 다음 요구사항에 맞춰 자연스러운 한국어 구어체 대본을 생성해주세요.
+
+    **강의 설명:**
+    ---
+    {description}
+    ---
 
     **주어진 텍스트 (수업 내용):**
     ---
@@ -161,8 +193,8 @@ def generate_lesson_script(
 
     **대본 작성 요구사항:**
     0.  페이지마다 "----page n----"으로 페이지를 구분해줘
-    1.  **시작:** "이번 시간에는 [핵심 주제]에 대해 함께 알아볼 거예요." 와 같이 수업의 주제를 명확히 밝히며 시작하세요. 주제는 주어진 텍스트의 핵심 내용을 파악하여 자연스럽게 언급해야 합니다.
-    2.  **본문 (중간 페이지):** 주어진 텍스트 내용과 추가로 관련된 내용을 자세히 설명해주세요. 마치 옆에서 설명해 주듯이 친근한 구어체 말투를 사용하세요. 어려운 용어는 쉽게 풀어서 설명하고, 필요하다면 간단한 예시나 비유를 들어 이해를 도와주세요. 내용을 논리적인 흐름에 따라 여러 문단으로 나누어 설명하는 것이 좋습니다. 딱딱한 설명서 느낌이 아니라, 실제 대화처럼 자연스럽게 이어지도록 작성해주세요.
+    1.  **시작:** "이번 시간에는 [핵심 주제]에 대해 함께 알아볼 거예요." 와 같이 수업의 주제를 명확히 밝히며 시작하세요. 주제는 주어진 텍스트와 강의 설명의 핵심 내용을 파악하여 자연스럽게 언급해야 합니다.
+    2.  **본문 (중간 페이지):** 주어진 텍스트 내용과 강의 설명을 바탕으로 자세히 설명해주세요. 마치 옆에서 설명해 주듯이 친근한 구어체 말투를 사용하세요. 어려운 용어는 쉽게 풀어서 설명하고, 필요하다면 간단한 예시나 비유를 들어 이해를 도와주세요. 내용을 논리적인 흐름에 따라 여러 문단으로 나누어 설명하는 것이 좋습니다. 딱딱한 설명서 느낌이 아니라, 실제 대화처럼 자연스럽게 이어지도록 작성해주세요.
     3.  **마무리 (마지막 페이지):** "오늘 수업 내용을 간단히 정리해볼게요. 그날 배운 주요 내용을 명확하게 요약하며 마무리하세요. "이것으로 이번 수업을 마치겠습니다" 같은 말을 덧붙여도 좋습니다.
     4.  **전체 스타일:** 전체적으로 일관성 있게 친근하고 부드러운 구어체 말투를 사용해주세요. 듣는 사람이 편안하게 느끼고 내용에 집중할 수 있도록, 실제 교수가 말하는 것처럼 생생하게 작성해주세요.
 
@@ -176,8 +208,11 @@ def generate_lesson_script(
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "당신은 한국어로 수업 대본을 구어체로 작성하는 전문가입니다."},
-                {"role": "user", "content": prompt_instructions}
+                {
+                    "role": "system",
+                    "content": "당신은 한국어로 수업 대본을 구어체로 작성하는 전문가입니다.",
+                },
+                {"role": "user", "content": prompt_instructions},
             ],
             temperature=0.7,
         )
@@ -196,25 +231,26 @@ def generate_lesson_script(
         logger.error(f"OpenAI API 호출 중 예상치 못한 오류 발생: {e}", exc_info=True)
         return None
 
-    if not generated_script: 
+    if not generated_script:
         logger.warning("생성된 대본 내용이 비어있습니다.")
         return None
 
     try:
         logger.info(f"생성된 대본을 '{output_script_file}' 파일로 저장 시도...")
-        with open(output_script_file, 'w', encoding='utf-8') as f:
+        with open(output_script_file, "w", encoding="utf-8") as f:
             f.write(generated_script)
-        logger.info(f"생성된 대본을 '{output_script_file}' 파일로 성공적으로 저장했습니다.")
-        return generated_script 
+        logger.info(
+            f"생성된 대본을 '{output_script_file}' 파일로 성공적으로 저장했습니다."
+        )
+        return generated_script
     except IOError as e:
-        logger.error(f"'{output_script_file}' 파일 저장 중 입출력 오류 발생: {e}", exc_info=True)
+        logger.error(
+            f"'{output_script_file}' 파일 저장 중 입출력 오류 발생: {e}", exc_info=True
+        )
         return None
     except Exception as e:
         logger.error(f"파일 저장 중 예상치 못한 오류 발생: {e}", exc_info=True)
         return None
-        
-
-
 
 
 def clean_text_with_llm(text_content: str, api_key: str, model: str) -> Optional[str]:
@@ -306,7 +342,9 @@ def generate_and_execute_ppt_code(
         logger.info(f"'{example_output_file}' 파일 읽기 완료.")
 
     except FileNotFoundError as e:
-        logger.error(f"필수 입력 파일 중 하나를 찾을 수 없습니다: {e.filename}", exc_info=True)
+        logger.error(
+            f"필수 입력 파일 중 하나를 찾을 수 없습니다: {e.filename}", exc_info=True
+        )
         return None
     except Exception as e:
         logger.error(f"입력 파일 읽기 중 오류 발생: {e}", exc_info=True)
@@ -327,15 +365,17 @@ def generate_and_execute_ppt_code(
         "[수업 내용 끝]"
     )
 
-
     generated_code = None
     try:
         logger.info(f"OpenAI API 요청 전송 (모델: {model})...")
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an AI assistant that generates complete Python scripts using the python-pptx library based on provided lecture content and formatting instructions. Only return valid Python code. Do not include any text, explanation, or formatting."},
-                {"role": "user", "content": full_prompt}
+                {
+                    "role": "system",
+                    "content": "You are an AI assistant that generates complete Python scripts using the python-pptx library based on provided lecture content and formatting instructions. Only return valid Python code. Do not include any text, explanation, or formatting.",
+                },
+                {"role": "user", "content": full_prompt},
             ],
             temperature=0.5,
         )
@@ -355,7 +395,9 @@ def generate_and_execute_ppt_code(
             if "```" in processed_code:
                 processed_code = processed_code.rsplit("```", 1)[0]
         else:
-            processed_code = raw_generated_content # 코드 블록 마커가 없는 경우 그대로 사용
+            processed_code = (
+                raw_generated_content  # 코드 블록 마커가 없는 경우 그대로 사용
+            )
 
         generated_code = processed_code.strip()
         if not generated_code:
@@ -371,14 +413,19 @@ def generate_and_execute_ppt_code(
 
     try:
         logger.info(f"생성된 Python 코드를 '{output_code_file}'에 저장 시도...")
-        with open(output_code_file, 'w', encoding='utf-8') as f:
+        with open(output_code_file, "w", encoding="utf-8") as f:
             f.write(generated_code)
         logger.info(f"생성된 Python 코드가 '{output_code_file}'에 저장되었습니다.")
     except IOError as e:
-        logger.error(f"'{output_code_file}' 파일 저장 중 입출력 오류 발생: {e}", exc_info=True)
+        logger.error(
+            f"'{output_code_file}' 파일 저장 중 입출력 오류 발생: {e}", exc_info=True
+        )
         return None
     except Exception as e:
-        logger.error(f"'{output_code_file}' 파일 저장 중 예상치 못한 오류 발생: {e}", exc_info=True)
+        logger.error(
+            f"'{output_code_file}' 파일 저장 중 예상치 못한 오류 발생: {e}",
+            exc_info=True,
+        )
         return None
 
     if execute_code:
@@ -389,7 +436,7 @@ def generate_and_execute_ppt_code(
                 check=True,
                 capture_output=True,
                 text=True,
-                encoding='utf-8'
+                encoding="utf-8",
             )
             logger.info(f"--- '{output_code_file}' 실행 결과 (표준 출력) ---")
             if process.stdout:
@@ -398,17 +445,30 @@ def generate_and_execute_ppt_code(
                 logger.info("표준 출력이 없습니다.")
 
             if process.stderr:
-                logger.warning(f"--- '{output_code_file}' 실행 중 발생한 오류 출력 (표준 오류) ---")
+                logger.warning(
+                    f"--- '{output_code_file}' 실행 중 발생한 오류 출력 (표준 오류) ---"
+                )
                 print(process.stderr)
 
-            logger.info(f"스크립트 '{output_code_file}'이(가) 정상적으로 실행되었습니다.")
+            logger.info(
+                f"스크립트 '{output_code_file}'이(가) 정상적으로 실행되었습니다."
+            )
         except subprocess.CalledProcessError as e:
-            logger.error(f"'{output_code_file}' 실행 중 오류 발생 (종료 코드: {e.returncode}):", exc_info=False)
+            logger.error(
+                f"'{output_code_file}' 실행 중 오류 발생 (종료 코드: {e.returncode}):",
+                exc_info=False,
+            )
             logger.error(f"표준 출력:\n{e.stdout}")
             logger.error(f"표준 오류:\n{e.stderr}")
         except FileNotFoundError:
-            logger.error(f"실행할 파일 '{output_code_file}'을(를) 찾을 수 없습니다.", exc_info=True)
+            logger.error(
+                f"실행할 파일 '{output_code_file}'을(를) 찾을 수 없습니다.",
+                exc_info=True,
+            )
         except Exception as e:
-            logger.error(f"'{output_code_file}' 실행 중 예상치 못한 오류 발생: {e}", exc_info=True)
+            logger.error(
+                f"'{output_code_file}' 실행 중 예상치 못한 오류 발생: {e}",
+                exc_info=True,
+            )
 
     return generated_code

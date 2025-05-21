@@ -6,6 +6,7 @@ from .models import Lecture
 
 class LectureUploadSerializer(serializers.Serializer):
     subject = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=2048)
     professor = serializers.CharField(max_length=255)
     file = serializers.FileField()
 
