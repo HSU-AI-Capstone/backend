@@ -26,10 +26,10 @@ class LectureUploadSerializer(serializers.Serializer):
 class LectureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lecture
-        fields = ["id", "title", "professor"]
+        fields = ["id", "title", "professor", "view_count", "video_url", "created_at"]
 
 
 class LectureDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lecture
-        fields = ["id", "title", "professor", "video_url", "created_at"]
+        fields = ["id", "title", "professor", "view_count", "video_url", "created_at"]

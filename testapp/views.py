@@ -2,10 +2,10 @@ import os
 import tempfile
 import uuid
 
-from django.http import HttpResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import generics
+from rest_framework import generics, filters
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,8 +20,10 @@ from .serializers import (
 from .utils import mock_generate_lecture_video
 
 
-def index(request):
-    return HttpResponse("설정이 완료되었습니다.")
+class CustomPagination(PageNumberPagination):
+    page_size = 30
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 class UploadLectureView(APIView):
@@ -79,10 +81,37 @@ class UploadLectureView(APIView):
 class LectureListView(generics.ListAPIView):
     queryset = Lecture.objects.all()
     serializer_class = LectureSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['title', 'professor']
+    pagination_class = CustomPagination  # ✅ 추가된 부분
 
     @swagger_auto_schema(
         operation_summary="강의 목록 조회",
-        operation_description="모든 강의의 제목과 교수 정보를 리스트로 반환합니다.",
+        operation_description="""
+        모든 강의의 제목과 교수 정보를 리스트로 반환합니다.  
+        `search` 쿼리 파라미터를 이용해 제목 또는 교수명으로 검색이 가능하며,  
+        `page`와 `page_size` 쿼리 파라미터로 페이지네이션을 적용할 수 있습니다.
+        """,
+        manual_parameters=[
+            openapi.Parameter(
+                'search',
+                openapi.IN_QUERY,
+                description="강의 제목 또는 교수명 검색어 (부분 매칭 가능)",
+                type=openapi.TYPE_STRING,
+            ),
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="조회할 페이지 번호 (기본값 1)",
+                type=openapi.TYPE_INTEGER,
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="한 페이지에 조회할 개수 (최대 100)",
+                type=openapi.TYPE_INTEGER,
+            ),
+        ],
         responses={200: LectureSerializer(many=True)},
     )
     def get(self, request, *args, **kwargs):
