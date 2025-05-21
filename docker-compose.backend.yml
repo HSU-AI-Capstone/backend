@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  mysqldb:
+    image: mysql:latest
+    container_name: mysqldb
+    environment:
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+  backend:
+    image: ${DOCKER_USERNAME}/${DOCKER_IMAGE_NAME}:latest
+    container_name: backend
+    environment:
+      - DJANGO_SETTINGS_MODULE=backend.settings.prod
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+      - AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
+      - AWS_S3_REGION=${AWS_S3_REGION}
+      - ELEVEN_LABS_KEY=${ELEVEN_LABS_KEY}
+      - VOICE_ID=${VOICE_ID}
+
+    command: >
+      bash -c "python wait_mysql.py &&
+      python manage.py migrate &&
+      exec gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers=4 --threads=2"
+    depends_on:
+      - mysqldb
+    #    labels:
+    #      - "traefik.enable=true"
+    #      - "traefik.http.routers.backend.rule=Host(`api.localhost`)"
+    #      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
