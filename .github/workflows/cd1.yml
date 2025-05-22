@@ -1,12 +1,14 @@
 name: CD - Upload Compose & Traefik Files
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [ "CI - Build & Push Docker Image" ]  # 정확한 CI 워크플로우 이름
+    types:
+      - completed
 
 jobs:
   upload-files:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # 성공 시에만 실행
     runs-on: ubuntu-latest
     environment: production
 
