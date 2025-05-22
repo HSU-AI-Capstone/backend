@@ -1,0 +1,55 @@
+name: CD - Upload Compose & Traefik Files
+
+on:
+  workflow_run:
+    workflows: [ "CI - Build & Push Docker Image" ]  # 정확한 CI 워크플로우 이름
+    types:
+      - completed
+
+jobs:
+  upload-files:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # 성공 시에만 실행
+    runs-on: ubuntu-latest
+    environment: production
+
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: 디버깅 - source 파일 실제 존재 여부 확인
+        run: |
+          echo "[INFO] 현재 경로: $(pwd)"
+          echo "[INFO] docker-compose.*.yml 파일 확인"
+          ls -l docker-compose.*.yml || echo "❌ 파일 없음"
+          echo "[INFO] traefik 디렉토리 내 파일"
+          ls -l traefik || echo "❌ traefik 폴더 없음"
+
+      - name: Create tar archive
+        run: |
+          tar -czvf deploy_bundle.tar.gz \
+            docker-compose.backend.yml \
+            docker-compose.portainer.yml \
+            docker-compose.traefik.yml \
+            traefik
+
+      - name: Save SSH Key
+        run: |
+          echo "${{ secrets.SERVER_PEM_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Upload to server
+        run: |
+          scp -i private_key.pem -o StrictHostKeyChecking=no \
+            deploy_bundle.tar.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/home/ubuntu/app/
+
+      - name: Extract on server
+        run: |
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            cd /home/ubuntu/app
+            tar -xzvf deploy_bundle.tar.gz
+            rm deploy_bundle.tar.gz
+          EOF

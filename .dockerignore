@@ -1,0 +1,9 @@
+# 환경 변수 파일
+.env
+*.env
+
+docker-compose.backend.yml
+docker-compose.portainer.yml
+docker-compose.traefik.yml
+
+traefik

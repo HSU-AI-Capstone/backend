@@ -1,0 +1,36 @@
+http:
+  routers:
+    django-app-router: # 라우터 이름 명확화 (선택 사항)
+      rule: "Host(`api.ai-cademy.store`) && PathPrefix(`/api/v1`)"
+      entryPoints:
+        - websecure # HTTPS (443) 엔트리포인트 사용
+      service: django-app-service # 서비스 이름 명확화 (선택 사항)
+      tls:
+        certResolver: letsencrypt # Let's Encrypt 사용 명시
+      middlewares:
+        - rate-limit # 적용할 미들웨어
+
+
+  services:
+    django-app-service: # 서비스 이름 명확화 (선택 사항)
+      loadBalancer:
+        servers:
+          # 백엔드 서비스 컨테이너의 이름과 포트를 Docker 네트워크 기준으로 지정
+          - url: "http://backend:8000"
+
+  middlewares:
+    auth:
+      basicAuth:
+        users:
+          - "ai-cademy:$2y$05$pZrC.bvRsmwucdN95XfmnOyYDyfQpkhYwMmu04FacnJzXFdpk5TqC"
+    # 대시보드 인증 미들웨어 정의 (실제 사용은 Traefik API 라우터 설정에서 필요 시 적용)
+    dashboard-auth:
+      basicAuth:
+        users:
+          - "ai-cademy:$2y$05$pZrC.bvRsmwucdN95XfmnOyYDyfQpkhYwMmu04FacnJzXFdpk5TqC"
+
+    # Rate Limit 미들웨어 정의
+    rate-limit:
+      rateLimit:
+        average: 50
+        burst: 100

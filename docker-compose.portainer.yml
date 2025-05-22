@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  portainer:
+    image: portainer/portainer-ce
+    container_name: portainer
+    #    ports:
+    #      - "9443:9443"
+    #      - "9000:9000"
+    expose:
+      - "9000"
+      - "9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - web
+      - app-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.ai-cademy.store`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+      - "traefik.http.routers.portainer.middlewares=auth@file"
+
+volumes:
+  portainer_data:
+
+networks:
+  web:
+    external: true
+
+  app-network:
+    external: true
