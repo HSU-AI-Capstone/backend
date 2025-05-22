@@ -50,7 +50,7 @@ class UploadLectureView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        serializer = LectureUploadSerializer(data=request.data, files=request.FILES)
+        serializer = LectureUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         subject = serializer.validated_data["subject"]
@@ -70,7 +70,7 @@ class UploadLectureView(APIView):
             video_url = upload_file_to_s3(video_path, video_filename)
 
         lecture = Lecture.objects.create(
-            subject=subject,
+            title=subject,
             professor=professor,
             video_url=video_url,
         )

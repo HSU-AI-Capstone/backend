@@ -19,7 +19,7 @@ def get_openai_client(api_key: str = API_KEY) -> Optional[openai.OpenAI]:
         )
         return None
     try:
-        client = openai.OpenAI(api_key=api_key)
+        client = openai.OpenAI(api_key=API_KEY)
         logger.info("OpenAI 클라이언트가 성공적으로 초기화되었습니다.")
         return client
     except openai.AuthenticationError:
@@ -89,6 +89,14 @@ def generate_ppt_structure(
     --- 원본 텍스트 끝 ---
     """
 
+    try:
+        client = openai.OpenAI(api_key=openai.api_key)
+        logger.info("OpenAI 클라이언트가 성공적으로 초기화되었습니다.")
+        return client
+    except openai.AuthenticationError:
+        logger.error("OpenAI 인증 실패. API 키가 올바른지 확인하세요.")
+        return None
+
     structured_content = None
     try:
         logger.info(f"OpenAI 모델({model})에 PPT 구조 생성 요청을 보냅니다...")
@@ -147,7 +155,7 @@ def generate_lesson_script(
     input_text_file: str,
     output_script_file: str,
     description: str = "",
-    model: str = DEFAULT_SCRIPT_MODEL,
+    model: str = MODEL_NAME,
     custom_api_key: Optional[str] = None,
 ) -> Optional[str]:
     """입력 텍스트 파일의 내용을 바탕으로 수업 대본을 생성하고 지정된 파일에 저장합니다."""
@@ -308,7 +316,7 @@ def generate_and_execute_ppt_code(
     example_input_file: str,
     example_output_file: str,
     openai_api_key: str,
-    model: str = DEFAULT_GPT_MODEL_FOR_CODE_GEN,
+    model: str = MODEL_NAME,
     execute_code: bool = True,
 ) -> Optional[str]:
     """
