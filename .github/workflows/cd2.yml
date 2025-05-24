@@ -40,7 +40,9 @@ jobs:
             export DOCKER_IMAGE_NAME="${{ secrets.DOCKER_IMAGE_NAME }}"
             
             export ELEVEN_LABS_KEY="${{ secrets.ELEVEN_LABS_KEY }}"
-            export VOICE_ID="${{ secrets.VOICE_ID }}"
+            export DAWOON_VOICE_ID="${{ secrets.DAWOON_VOICE_ID }}"
+            export JIJUN_VOICE_ID="${{ secrets.JIJUN_VOICE_ID }}"
+            export IU_VOICE_ID="${{ secrets.IU_VOICE_ID }}"
 
             cd /home/ubuntu/app
             
