@@ -113,6 +113,40 @@ last_slide_data = {
 # structured_slides 리스트에 마지막 슬라이드 추가
 structured_slides = structured_slides_base + [last_slide_data]
 
+def add_slide(prs: Presentation, slide_data: dict,
+              layout, is_first=False, with_image=False):
+    slide = prs.slides.add_slide(layout)
+    set_slide_background(slide)
+
+    # 제목
+    if "title" in slide_data:
+        slide.shapes.title.text = slide_data["title"]
+
+    # 본문
+    points = slide_data.get("points", [])
+    if slide.placeholders and len(slide.placeholders)>1:
+        tf = slide.placeholders[1].text_frame
+        tf.clear()
+        for pt in points:
+            # pt가 dict이면 text, 아니면 str(pt)
+            text = pt["text"] if isinstance(pt, dict) and "text" in pt else str(pt)
+            p = tf.add_paragraph()
+            p.text = text
+            p.level = 0
+            # explanation이 있으면 Level 1로 추가
+            if isinstance(pt, dict) and pt.get("explanation"):
+                pe = tf.add_paragraph()
+                pe.text = pt["explanation"]
+                pe.level = 1
+
+    # 노트
+    if slide_data.get("notes"):
+        notes_tf = slide.notes_slide.notes_text_frame
+        notes_tf.clear()
+        notes_tf.add_paragraph().text = slide_data["notes"]
+
+    # 이미지 삽입은 밖에서 호출하거나 with_image 플래그로 구현
+    return slide
 
 # --- 이미지 생성 관련 함수들 ---
 def generate_image_prompt(slide_data):

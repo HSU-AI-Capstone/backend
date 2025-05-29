@@ -1,6 +1,9 @@
 import logging
 import os
-from typing import Optional
+import subprocess
+import sys
+from pathlib import Path
+from typing import Optional, List
 
 import openai
 from openai import OpenAI
@@ -157,6 +160,7 @@ def generate_lesson_script(
     description: str = "",
     model: str = MODEL_NAME,
     custom_api_key: Optional[str] = None,
+    ppt_structure: Optional[List[str]] = None,
 ) -> Optional[str]:
     """입력 텍스트 파일의 내용을 바탕으로 수업 대본을 생성하고 지정된 파일에 저장합니다."""
     input_text = ""
@@ -186,8 +190,20 @@ def generate_lesson_script(
     if not client:
         return None
 
+    # PPT 구조가 있는 경우 프롬프트에 포함
+    ppt_context = ""
+    if ppt_structure:
+        ppt_context = f"""
+**PPT 슬라이드 구조:**
+{chr(10).join(f'슬라이드 {i+1}: {content}' for i, content in enumerate(ppt_structure))}
+
+위 PPT 슬라이드 구조를 기반으로 각 슬라이드에 맞는 대본을 생성해주세요.
+각 페이지는 해당 슬라이드의 내용을 자연스럽게 설명하는 형식이어야 합니다.
+"""
+
     prompt_instructions = f"""
-    당신은 주어진 텍스트 내용과 강의 설명을 바탕으로, 실제 사람이 편안하게 진행하는 수업 대본을 작성하는 AI입니다. 다음 요구사항에 맞춰 자연스러운 한국어 구어체 대본을 생성해주세요.
+    당신은 주어진 텍스트 내용과 강의 설명을 바탕으로, 실제 사람이 편안하게 진행하는 수업 대본을 작성하는 AI입니다. 
+    각 슬라이드의 내용에 맞춰 자연스러운 한국어 구어체 대본을 생성해주세요.
 
     **강의 설명:**
     ---
@@ -199,65 +215,71 @@ def generate_lesson_script(
     {input_text}
     ---
 
-    **대본 작성 요구사항:**
-    0.  페이지마다 "----page n----"으로 페이지를 구분해줘
-    1.  **시작:** "이번 시간에는 [핵심 주제]에 대해 함께 알아볼 거예요." 와 같이 수업의 주제를 명확히 밝히며 시작하세요. 주제는 주어진 텍스트와 강의 설명의 핵심 내용을 파악하여 자연스럽게 언급해야 합니다.
-    2.  **본문 (중간 페이지):** 주어진 텍스트 내용과 강의 설명을 바탕으로 자세히 설명해주세요. 마치 옆에서 설명해 주듯이 친근한 구어체 말투를 사용하세요. 어려운 용어는 쉽게 풀어서 설명하고, 필요하다면 간단한 예시나 비유를 들어 이해를 도와주세요. 내용을 논리적인 흐름에 따라 여러 문단으로 나누어 설명하는 것이 좋습니다. 딱딱한 설명서 느낌이 아니라, 실제 대화처럼 자연스럽게 이어지도록 작성해주세요.
-    3.  **마무리 (마지막 페이지):** "오늘 수업 내용을 간단히 정리해볼게요. 그날 배운 주요 내용을 명확하게 요약하며 마무리하세요. "이것으로 이번 수업을 마치겠습니다" 같은 말을 덧붙여도 좋습니다.
-    4.  **전체 스타일:** 전체적으로 일관성 있게 친근하고 부드러운 구어체 말투를 사용해주세요. 듣는 사람이 편안하게 느끼고 내용에 집중할 수 있도록, 실제 교수가 말하는 것처럼 생생하게 작성해주세요.
+    {ppt_context}
 
-    **출력 형식:**
-    위 요구사항에 따라 작성된 완전한 수업 대본 텍스트만 제공해주세요. 다른 부가적인 설명은 포함하지 마세요.
+    **대본 작성 요구사항:**
+    1. 각 슬라이드의 내용을 기반으로 해당 슬라이드에 대한 설명 대본을 작성해주세요.
+    2. 각 페이지는 "=== Page N ===" 형식으로 구분해주세요 (N은 1부터 시작).
+    3. 첫 페이지는 강의 소개와 목차를 포함해야 합니다.
+    4. 마지막 페이지는 전체 내용의 요약을 포함해야 합니다.
+    5. 각 페이지의 내용은 자연스러운 구어체로 작성해주세요.
+    6. 페이지 간의 연결이 자연스럽도록 해주세요.
+    7. 전문 용어는 쉽게 설명해주세요.
+    8. 각 페이지는 2-3분 정도 발표할 수 있는 분량으로 작성해주세요.
+    9. 슬라이드의 내용을 그대로 읽는 것이 아니라, 내용을 이해하기 쉽게 설명하는 방식으로 작성해주세요.
+    10. 각 슬라이드의 핵심 내용을 강조하면서도, 자연스러운 설명을 추가해주세요.
+    11. 슬라이드의 순서와 내용을 정확히 반영하여 대본을 작성해주세요.
+    12. 마지막 페이지는 "=== Page N ===" 형식으로 명확히 구분되어야 합니다.
     """
 
-    generated_script = None
     try:
-        logger.info(f"OpenAI 모델({model})을 사용하여 대본 생성 요청 중...")
+        logger.info(f"OpenAI 모델({model})에 대본 생성 요청을 보냅니다...")
         response = client.chat.completions.create(
             model=model,
             messages=[
                 {
                     "role": "system",
-                    "content": "당신은 한국어로 수업 대본을 구어체로 작성하는 전문가입니다.",
+                    "content": "당신은 교육 전문가입니다. 주어진 내용을 바탕으로 명확하고 이해하기 쉬운 강의 대본을 작성해주세요. 각 슬라이드의 내용을 자연스럽게 설명하는 방식으로 작성해주세요.",
                 },
                 {"role": "user", "content": prompt_instructions},
             ],
             temperature=0.7,
         )
-        generated_script_content = response.choices[0].message.content
-        if generated_script_content:
-            generated_script = generated_script_content.strip()
-            logger.info("대본 생성 완료.")
-        else:
-            logger.warning("OpenAI 응답이 비어 있습니다.")
+
+        script_content = response.choices[0].message.content
+        if not script_content:
+            logger.warning("OpenAI 응답의 content 필드가 비어 있습니다.")
             return None
 
-    except openai.APIError as e:
-        logger.error(f"OpenAI API 오류 발생: {e}", exc_info=True)
-        return None
-    except Exception as e:
-        logger.error(f"OpenAI API 호출 중 예상치 못한 오류 발생: {e}", exc_info=True)
-        return None
+        # 페이지 수 확인
+        pages = script_content.split("=== Page")
+        if len(pages) < 3:  # 최소 3페이지 (소개, 내용, 요약)
+            logger.warning("생성된 대본의 페이지 수가 부족합니다.")
+            return None
 
-    if not generated_script:
-        logger.warning("생성된 대본 내용이 비어있습니다.")
-        return None
-
-    try:
-        logger.info(f"생성된 대본을 '{output_script_file}' 파일로 저장 시도...")
-        with open(output_script_file, "w", encoding="utf-8") as f:
-            f.write(generated_script)
-        logger.info(
-            f"생성된 대본을 '{output_script_file}' 파일로 성공적으로 저장했습니다."
-        )
-        return generated_script
-    except IOError as e:
-        logger.error(
-            f"'{output_script_file}' 파일 저장 중 입출력 오류 발생: {e}", exc_info=True
-        )
-        return None
+        # 대본 저장
+        try:
+            logger.info(f"생성된 대본을 '{output_script_file}' 파일로 저장 시도...")
+            with open(output_script_file, "w", encoding="utf-8") as f:
+                f.write(script_content)
+            logger.info(
+                f"생성된 대본을 '{output_script_file}' 파일로 성공적으로 저장했습니다."
+            )
+            return script_content
+        except IOError as e:
+            logger.error(
+                f"'{output_script_file}' 파일 저장 중 입출력 오류 발생: {e}",
+                exc_info=True,
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                f"'{output_script_file}' 파일 저장 중 예상치 못한 오류 발생: {e}",
+                exc_info=True,
+            )
+            return None
     except Exception as e:
-        logger.error(f"파일 저장 중 예상치 못한 오류 발생: {e}", exc_info=True)
+        logger.error(f"OpenAI API 호출 중 오류 발생: {e}", exc_info=True)
         return None
 
 

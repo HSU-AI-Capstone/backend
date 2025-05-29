@@ -28,7 +28,9 @@ services:
       - AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
       - AWS_S3_REGION=${AWS_S3_REGION}
       - ELEVEN_LABS_KEY=${ELEVEN_LABS_KEY}
-      - VOICE_ID=${VOICE_ID}
+      - DAWOON_VOICE_ID=${DAWOON_VOICE_ID}
+      - JIJUN_VOICE_ID=${JIJUN_VOICE_ID}
+      - IU_VOICE_ID=${IU_VOICE_ID}
 
     command: >
       bash -c "python wait_mysql.py &&

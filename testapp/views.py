@@ -1,10 +1,11 @@
+import logging
 import os
+import shutil
 import tempfile
-import uuid
 
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import generics, filters
+from rest_framework import generics, filters, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -17,7 +18,9 @@ from .serializers import (
     LectureDetailSerializer,
     LectureUploadSerializer,
 )
-from .utils import mock_generate_lecture_video
+from .utils import generate_lecture_video
+
+logger = logging.getLogger(__name__)
 
 
 class CustomPagination(PageNumberPagination):
@@ -50,32 +53,50 @@ class UploadLectureView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        serializer = LectureUploadSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer = LectureUploadSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
 
-        subject = serializer.validated_data["subject"]
-        description = serializer.validated_data["description"]
-        professor = serializer.validated_data["professor"]
-        pdf_file = serializer.validated_data["file"]
+            subject = serializer.validated_data["subject"]
+            description = serializer.validated_data["description"]
+            professor = serializer.validated_data["professor"]
+            pdf_file = serializer.validated_data["file"]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pdf_path = os.path.join(tmpdir, pdf_file.name)
-            with open(pdf_path, "wb") as f:
-                for chunk in pdf_file.chunks():
-                    f.write(chunk)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                pdf_path = os.path.join(tmpdir, pdf_file.name)
+                with open(pdf_path, "wb") as f:
+                    for chunk in pdf_file.chunks():
+                        f.write(chunk)
 
-            video_path = mock_generate_lecture_video(pdf_path)
-            # video_path = generate_lecture_video(subject, description, pdf_path)
-            video_filename = f"{uuid.uuid4().hex}.mp4"
-            video_url = upload_file_to_s3(video_path, video_filename)
+                video_path = generate_lecture_video(
+                    subject=subject,
+                    description=description,
+                    professor=professor,
+                    pdf_path=pdf_path,
+                )
 
-        lecture = Lecture.objects.create(
-            title=subject,
-            professor=professor,
-            video_url=video_url,
-        )
+                # S3에 업로드
+                video_filename = os.path.basename(video_path)
+                video_url = upload_file_to_s3(video_path, video_filename)
 
-        return Response({"lecture_id": lecture.id}, status=201)
+                # 임시 디렉토리 정리
+                temp_dir = os.path.dirname(video_path)
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+
+                lecture = Lecture.objects.create(
+                    title=subject,
+                    professor=professor,
+                    video_url=video_url,
+                )
+
+            return Response({"lecture_id": lecture.id}, status=201)
+        except Exception as e:
+            logger.error(f"강의 영상 생성 중 오류 발생: {str(e)}", exc_info=True)
+            return Response(
+                {"error": f"강의 영상 생성 중 오류가 발생했습니다: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class LectureListView(generics.ListAPIView):
