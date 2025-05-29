@@ -1,22 +1,19 @@
 entryPoints:
   web:
     address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
+
   websecure:
     address: ":443"
+
   dashboard:
     address: ":8088"
 
 api:
   dashboard: true
-  insecure: false # true로 변경하면 대시보드 접근 시 인증 불필요 (테스트 용도)
+  insecure: false
 
 log:
-  level: INFO # DEBUG 로 변경하면 더 상세한 로그 확인 가능
+  level: INFO
 
 accessLog: { }
 
@@ -24,14 +21,31 @@ providers:
   docker:
     exposedByDefault: false
     network: web
+
   file:
-    filename: "/etc/traefik/dynamic_conf.yml" # 컨테이너 내부 경로. 실제 마운트 경로 확인 필요
-    # watch: true # 필요 시 파일 변경 감지 활성화
+    filename: "/etc/traefik/dynamic_conf.yml"
 
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: sanghun@gmail.com # 실제 사용하는 이메일 주소 권장
-      storage: /etc/traefik/acme.json # acme 인증서 저장 경로 (볼륨 마운트 필수)
+      email: sanghun@gmail.com
+      storage: /etc/traefik/acme.json
       httpChallenge:
-        entryPoint: web # HTTP 챌린지는 'web'(80) 엔트리포인트 사용
+        entryPoint: web
+
+http:
+  middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  routers:
+    redirect-all:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-to-https
+      service: noop@internal
+      priority: 1
