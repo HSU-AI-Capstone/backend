@@ -1,25 +1,30 @@
 FROM python:3.10-slim
 
-# 1. 시스템 필수 패키지 설치
+# 시스템 필수 패키지
 RUN apt-get update && apt-get install -y \
     curl \
     git \
     build-essential \
+    cmake \
     ffmpeg \
     libsndfile1 \
     pkg-config \
     libssl-dev \
-    libreoffice-core \
     poppler-utils \
     default-jre-headless \
     libreoffice \
+    libglib2.0-0 \
+    libgl1-mesa-glx \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
     fonts-nanum \
     fonts-nanum-coding \
     fonts-nanum-extra \
     fonts-noto-cjk \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. Rust 설치 및 설정
+# Rust 설치 (생략해도 되면 삭제 가능)
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y \
   && . "$HOME/.cargo/env" \
   && rustup default stable \
@@ -27,7 +32,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y \
   && rustup target add aarch64-unknown-linux-gnu \
   && rustc --version
 
-# 3. 환경 변수 등록 (비로그인 셸에서도 작동)
+# 환경 변수
 ENV PATH="/root/.cargo/bin:$PATH"
 ENV LANG=ko_KR.UTF-8
 ENV LC_ALL=ko_KR.UTF-8
@@ -37,30 +42,30 @@ ENV HOME=/tmp
 ENV RUSTUP_HOME=/root/.rustup
 ENV CARGO_HOME=/root/.cargo
 
-# 4. pip 최신화
+# pip 최신화
 RUN pip install --upgrade pip setuptools wheel
 
-# 5. 프로젝트 복사 및 설치
+# 프로젝트 복사
 WORKDIR /app
 COPY . .
 
-# 6. moviepy 별도 설치 (최신 버전)
+# torch 사전 설치 (GPU 아닌 경우)
+RUN pip install torch==2.7.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cpu
+
+# moviepy 수동 설치
 RUN pip install --no-deps git+https://github.com/Zulko/moviepy.git@v2.1.2
 
-# 7. python-pptx 버전 고정 (Python 3.10 호환)
-RUN pip uninstall -y python-pptx \
-  && pip install python-pptx==0.6.21
+# python-pptx 버전 고정
+RUN pip uninstall -y python-pptx && pip install python-pptx==0.6.21
 
-# 8. requirements 설치
+# requirements.txt 설치
 RUN pip install -r requirements.txt
 
-# 9. 설치 검증
-RUN soffice --version \
+# 설치 검증
+RUN soffice --headless --version \
   && pdfinfo -v \
   && python -c "from pptx import Presentation; print('python-pptx installed successfully')"
 
-# 포트 오픈
 EXPOSE 8000
 
-# Dockerfile-prod
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=4", "--threads=2"]
