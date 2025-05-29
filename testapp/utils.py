@@ -17,7 +17,7 @@ from .use_gpt import (
     clean_text_with_llm,
     API_KEY,
 )
-from .voice import tts_pages_to_mp3, DEFAULT_VOICE_KEY
+from .voice import tts_pages_to_mp3
 
 logger = logging.getLogger(__name__)
 
@@ -226,11 +226,14 @@ def validate_slide_data(slides_data):
             raise RuntimeError("수업 대본 생성 실패")
 
         audio_dir = workdir / "audio"
-        # 기본 목소리: DEFAULT_VOICE_KEY ("DAWOON" 등)
+        # 교수 이름에 따라 음성 선택
+        voice_key = professor.upper()  # 대문자로 변환
+        print(f"선택된 교수: {professor} (음성 키: {voice_key})")
+        
         tts_pages_to_mp3(
             txt_path=str(script_file),
             out_dir=str(audio_dir),
-            voice_key=DEFAULT_VOICE_KEY,
+            voice_key=voice_key,
             base_name="page",
         )
 
